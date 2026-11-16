@@ -4,6 +4,25 @@ import 'package:clerk_flutter/generated/clerk_sdk_localizations.dart';
 /// Function that performs localization
 typedef LocalizedMessage = String Function(ClerkSdkLocalizations l10ns);
 
+const _invalidCredentialCodes = {
+  'form_identifier_not_found',
+  'form_password_incorrect',
+  'form_password_or_identifier_incorrect',
+};
+
+String _serverErrorMessage(
+  clerk.ClerkError error,
+  ClerkSdkLocalizations l10ns,
+) {
+  final invalidCredentials = error.errors?.errors?.any(
+        (apiError) => _invalidCredentialCodes.contains(apiError.code),
+      ) ??
+      false;
+  return invalidCredentials
+      ? 'E-Mail oder Passwort falsch'
+      : l10ns.serverErrorResponse(error.argument.toString());
+}
+
 /// An extension class to enable localization of [clerk.ClerkError]
 ///
 extension ClerkAuthErrorExtension on clerk.ClerkError {
@@ -40,7 +59,7 @@ extension ClerkAuthErrorExtension on clerk.ClerkError {
       clerk.ClerkErrorCode.passwordResetStrategyError =>
         l10ns.unsupportedPasswordResetStrategy(argument.toString()),
       clerk.ClerkErrorCode.serverErrorResponse =>
-        l10ns.serverErrorResponse(argument.toString()),
+        _serverErrorMessage(this, l10ns),
       clerk.ClerkErrorCode.tooManyRetries => l10ns.tooManyRetries,
       clerk.ClerkErrorCode.unknownError =>
         l10ns.unknownError(argument.toString()),
