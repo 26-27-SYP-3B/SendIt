@@ -42,6 +42,21 @@ Nach erfolgreicher Anmeldung oder Registrierung erscheint die Startansicht.
 Die Sitzung wird vom Clerk-SDK über App-Neustarts hinweg gespeichert.
 Die vorgefertigten Clerk-Formulare sind derzeit auf Englisch.
 
+## Fahrerprofil
+
+In der Startansicht zeigt die Karte **Mein Profil** Name, Wohnort und
+Kurzbeschreibung. Über **Profil bearbeiten** lassen sich die Angaben ändern.
+**Speichern** übernimmt sie und zeigt sie sofort an; **Abbrechen** verwirft die
+Änderungen. Die Kurzbeschreibung ist auf 300 Zeichen begrenzt, ein Zähler zeigt
+den Stand an.
+
+Die Angaben werden ohne eigenes Backend in den `unsafeMetadata` des
+Clerk-Benutzers unter `driverProfile` gespeichert. Diese Daten darf der Client
+schreiben; sie sind daher nicht vertrauenswürdig und dürfen später nicht für
+Berechtigungen verwendet werden. Andere Einträge in `unsafeMetadata` bleiben
+beim Speichern erhalten. Vor dem ersten Speichern wird der Name aus dem
+Clerk-Konto vorgeschlagen.
+
 Bei OAuth übernimmt `OAuthCompletion` den Übergang zwischen Anmeldung und
 Registrierung, sobald Clerk die Anbieter-Verifizierung als `transferable`
 meldet. Das gleicht den fehlenden Transfer im Rotating-Token-Rücksprung des
@@ -89,6 +104,9 @@ Für einen vollständigen Test im Simulator:
    die Startansicht oder noch ausstehende Pflichtangaben erscheinen.
 6. Mit demselben OAuth-Konto erneut anmelden und den Sitzungserhalt nach
    einem App-Neustart prüfen.
+7. Profil bearbeiten, speichern und prüfen, dass die Angaben sofort und nach
+   einem App-Neustart erscheinen. Erneut bearbeiten, abbrechen und prüfen,
+   dass die alten Angaben bleiben.
 
 Das [Clerk Flutter SDK](https://pub.dev/packages/clerk_flutter) ist aktuell eine
 communitygepflegte Beta. Die Einrichtung ist im
