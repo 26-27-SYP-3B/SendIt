@@ -14,6 +14,8 @@ SendIt changes:
 - Do not report errors for embedded resources or after an accepted callback.
   Other main-frame loading errors remain visible.
 - Do not update a dismissed OAuth overlay's title.
+- Show a neutral German message for invalid sign-in identifiers or passwords,
+  while keeping other sign-in errors visible through the normal error handler.
 - Add explicit types to four declarations for current Dart analyzer rules.
 
 The application tests cover callback recognition and duplicate events. A live

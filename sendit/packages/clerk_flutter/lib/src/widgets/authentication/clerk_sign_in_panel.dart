@@ -43,11 +43,12 @@ class _ClerkSignInPanelState extends State<ClerkSignInPanel>
   String _password = '';
   String _code = '';
 
-  void _onError(clerk.ClerkError _) {
+  void _onError(ClerkAuthState authState, clerk.ClerkError error) {
     setState(() {
       _password = _code = '';
       _strategy = clerk.Strategy.unknown;
     });
+    authState.handleError(error);
   }
 
   Future<void> _reset(ClerkAuthState authState) async {
@@ -137,7 +138,7 @@ class _ClerkSignInPanelState extends State<ClerkSignInPanel>
             }
           }
         },
-        onError: _onError,
+        onError: (error) => _onError(authState, error),
       );
     }
   }
