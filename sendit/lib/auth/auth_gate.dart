@@ -1,6 +1,8 @@
 import 'package:clerk_flutter/clerk_flutter.dart';
 import 'package:flutter/material.dart';
 
+import '../profile/driver_profile.dart';
+import '../profile/profile_card.dart';
 import 'oauth_completion.dart';
 
 class AuthGate extends StatelessWidget {
@@ -52,7 +54,8 @@ class _SignedInView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = ClerkAuth.userOf(context)!;
+    final auth = ClerkAuth.of(context);
+    final user = auth.user!;
 
     return Center(
       child: SingleChildScrollView(
@@ -69,6 +72,14 @@ class _SignedInView extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(user.email ?? user.name, textAlign: TextAlign.center),
+            const SizedBox(height: 24),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: ProfileCard(
+                profile: DriverProfile.fromUser(user),
+                onSave: (profile) => saveDriverProfile(auth, profile),
+              ),
+            ),
           ],
         ),
       ),
