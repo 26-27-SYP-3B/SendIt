@@ -31,7 +31,22 @@ class AuthGate extends StatelessWidget {
               }
 
               if (auth.isSignedIn) {
-                return const HomeShell(start: _SignedInView());
+                final userId = auth.user!.id;
+                return HomeShell(
+                  key: ValueKey(userId),
+                  start: const _SignedInView(),
+                  userId: userId,
+                  sessionToken: () async {
+                    if (auth.user?.id != userId) {
+                      throw StateError('Die aktive Sitzung wurde gewechselt.');
+                    }
+                    final token = await auth.sessionToken();
+                    if (auth.user?.id != userId) {
+                      throw StateError('Die aktive Sitzung wurde gewechselt.');
+                    }
+                    return token.jwt;
+                  },
+                );
               }
 
               return SingleChildScrollView(

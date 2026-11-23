@@ -52,9 +52,13 @@ class RoutingService {
   final String baseUrl;
   final Duration timeout;
 
+  void close() => _client.close();
+
   Future<RouteResult> route(List<LatLng> waypoints) async {
     if (waypoints.length < 2) {
-      throw const RoutingException('Für eine Route braucht es mindestens zwei Punkte.');
+      throw const RoutingException(
+        'Für eine Route braucht es mindestens zwei Punkte.',
+      );
     }
 
     final coords = waypoints
@@ -86,15 +90,13 @@ class RoutingService {
       final coordinates =
           (route['geometry'] as Map<String, dynamic>)['coordinates'] as List;
       return RouteResult(
-        points: coordinates
-            .map((c) {
-              final pair = c as List;
-              return LatLng(
-                (pair[1] as num).toDouble(),
-                (pair[0] as num).toDouble(),
-              );
-            })
-            .toList(),
+        points: coordinates.map((c) {
+          final pair = c as List;
+          return LatLng(
+            (pair[1] as num).toDouble(),
+            (pair[0] as num).toDouble(),
+          );
+        }).toList(),
         distanceMeters: (route['distance'] as num).toDouble(),
         durationSeconds: (route['duration'] as num).toDouble(),
       );

@@ -1,5 +1,6 @@
 import 'package:clerk_flutter/clerk_flutter.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'auth/auth_gate.dart';
 
@@ -24,6 +25,8 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'SendIt',
       debugShowCheckedModeBanner: false,
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      supportedLocales: const [Locale('en'), Locale('de', 'AT')],
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
