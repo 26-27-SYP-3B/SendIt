@@ -1,3 +1,4 @@
+
 import 'package:clerk_flutter/clerk_flutter.dart';
 import 'package:flutter/material.dart';
 
@@ -18,7 +19,7 @@ class AuthGate extends StatelessWidget {
               if (auth.isNotAvailable) {
                 return AuthUnavailable(
                   message:
-                      'Die Anmeldung ist gerade nicht erreichbar. '
+                  'Die Anmeldung ist gerade nicht erreichbar. '
                       'Bitte prüfe deine Internetverbindung.',
                   onRetry: () => auth.safelyCall(context, () async {
                     await auth.refreshClient();
@@ -32,7 +33,7 @@ class AuthGate extends StatelessWidget {
               }
 
               return SingleChildScrollView(
-                padding: EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                 child: Center(
                   child: OAuthCompletion(
                     auth: auth,
@@ -70,6 +71,97 @@ class _SignedInView extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(user.email ?? user.name, textAlign: TextAlign.center),
+            const SizedBox(height: 24),
+            OutlinedButton.icon(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const SettingsView(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.settings),
+              label: const Text('Einstellungen'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class SettingsView extends StatefulWidget {
+  const SettingsView({super.key});
+
+  @override
+  State<SettingsView> createState() => _SettingsViewState();
+}
+
+class _SettingsViewState extends State<SettingsView> {
+  bool _isSigningOut = false;
+
+  Future<void> _signOut() async {
+    setState(() {
+      _isSigningOut = true;
+    });
+
+    final auth = ClerkAuth.of(context);
+    bool failed = false;
+
+    await auth.safelyCall(
+      context,
+      auth.signOut,
+      onError: (error) {
+        auth.handleError(error);
+        failed = true;
+      },
+    );
+
+    if (!mounted) return;
+
+    if (failed) {
+      setState(() {
+        _isSigningOut = false;
+      });
+      return;
+    }
+
+    Navigator.of(context).popUntil(
+          (route) => route.isFirst,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Einstellungen'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            const ListTile(
+              leading: Icon(Icons.person),
+              title: Text('Konto'),
+              subtitle: Text('Kontoeinstellungen'),
+            ),
+            const Divider(),
+            const Spacer(),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _isSigningOut ? null : _signOut,
+                icon: const Icon(Icons.logout),
+                label: Text(
+                  _isSigningOut ? 'Abmelden...' : 'Abmelden',
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -78,7 +170,11 @@ class _SignedInView extends StatelessWidget {
 }
 
 class AuthUnavailable extends StatelessWidget {
-  const AuthUnavailable({super.key, required this.message, this.onRetry});
+  const AuthUnavailable({
+    super.key,
+    required this.message,
+    this.onRetry,
+  });
 
   final String message;
   final VoidCallback? onRetry;
