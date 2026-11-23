@@ -3,7 +3,13 @@
 <plist version="1.0">
 <dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>SendIt verwendet deinen Standort, um ihn auf der Karte anzuzeigen.</string>
+	<string>SendIt verwendet deinen Standort für die Karte und während einer gestarteten Fahrt.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>SendIt zeichnet deine gestartete Fahrt auch bei gesperrtem Bildschirm per GPS auf, bis du sie beendest.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
