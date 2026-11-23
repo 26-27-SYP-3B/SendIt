@@ -106,6 +106,39 @@ void main() {
     controller.dispose();
   });
 
+  test('Bewegung während der Pause wird nicht zur Strecke gerechnet', () async {
+    final source = FakeRideLocationSource();
+    var now = DateTime.utc(2026, 11, 23, 10);
+    final controller = RideRecordingController(
+      locationSource: source,
+      storage: RideStorage(userId: 'pause-distance-test'),
+      now: () => now,
+    );
+
+    await controller.start();
+    source.add(
+      RideTrackPoint(latitude: 48.3, longitude: 14.28, timestamp: now),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    now = now.add(const Duration(seconds: 10));
+    await controller.pause();
+
+    now = now.add(const Duration(minutes: 5));
+    await controller.resume();
+    source.add(
+      RideTrackPoint(latitude: 48.4, longitude: 14.38, timestamp: now),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    final ride = await controller.stop();
+    expect(ride, isNotNull);
+    expect(ride!.points, hasLength(2));
+    expect(ride.distanceMeters, 0);
+    await source.close();
+    controller.dispose();
+  });
+
   test('Start wird ohne Standortberechtigung abgelehnt', () async {
     final source = FakeRideLocationSource()..permissionGranted = false;
     final controller = RideRecordingController(
