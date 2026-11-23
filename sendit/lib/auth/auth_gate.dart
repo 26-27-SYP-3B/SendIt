@@ -2,6 +2,7 @@ import 'package:clerk_flutter/clerk_flutter.dart';
 import 'package:flutter/material.dart';
 
 import 'oauth_completion.dart';
+import '../home/home_shell.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
@@ -27,7 +28,7 @@ class AuthGate extends StatelessWidget {
               }
 
               if (auth.isSignedIn) {
-                return const _SignedInView();
+                return const HomeShell(start: _SignedInView());
               }
 
               return SingleChildScrollView(

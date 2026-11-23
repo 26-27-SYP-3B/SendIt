@@ -10,6 +10,10 @@
 include: package:flutter_lints/flutter.yaml
 
 analyzer:
+  errors:
+    # Flutter 3.47+ markiert material.dart als veraltet. Der vorgeschlagene
+    # Ersatz (material_ui) ist kein Projekt-Package – Quick Fix NICHT anwenden.
+    deprecated_member_use: ignore
   exclude:
     - build/**
     - android/**
