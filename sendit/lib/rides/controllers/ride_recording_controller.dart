@@ -1,3 +1,7 @@
+// Der öffentliche Konstruktor verwendet benannte Parameter ohne Unterstrich.
+// Die zugehörigen Felder bleiben bewusst privat.
+// ignore_for_file: prefer_initializing_formals
+
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
