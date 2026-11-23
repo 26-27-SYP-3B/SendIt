@@ -86,11 +86,46 @@ eingecheckt und muss nach `flutter clean` gegebenenfalls neu angelegt werden.
 Zum Ausführen wird ein angeschlossenes iPhone oder eine installierte
 iOS-Simulator-Laufzeit in Xcode benötigt.
 
+## Ausfahrten einrichten
+
+Ausfahrten, Freundschaften, Gruppen und Anmeldungen liegen in einer zentralen
+SQLite-Datenbank. Die App verwendet für den Zugriff die bestehende
+Clerk-Anmeldung. Öffentlich sichtbare Ausfahrten sind für alle angemeldeten
+Fahrer sichtbar. Die Übersicht und Karte zeigen bevorstehende Ausfahrten.
+
+1. In den Ordner `server` wechseln, mit Node.js 24 oder neuer `npm ci`
+   ausführen und `.env.example` nach `.env` kopieren.
+2. In `server/.env` den `CLERK_SECRET_KEY` und als `CLERK_ISSUER` die
+   HTTPS-Adresse der Frontend API derselben Clerk-Instanz eintragen, z. B.
+   `https://deine-instanz.clerk.accounts.dev` ohne abschließenden Schrägstrich.
+3. Den Dienst im Ordner `server` mit `npm start` starten. Für den lokalen
+   iOS-Simulator in `clerk.local.json` den Eintrag
+   `"SENDIT_API_URL": "http://127.0.0.1:8080"` ergänzen und Flutter neu starten.
+4. Für mehrere Geräte denselben Dienst unter einer HTTPS-Adresse bereitstellen
+   und diese in allen Apps als `SENDIT_API_URL` setzen. Der Dienst kann hinter
+   einem HTTPS-Reverse-Proxy laufen. `DATABASE_PATH` auf eine dauerhaft
+   gespeicherte SQLite-Datei auf dem Server setzen.
+
+Im Tab **Ausfahrten** eine Ausfahrt erstellen, den Treffpunkt antippen und die
+Sichtbarkeit wählen. Eine Route kann direkt mit Wegpunkten geplant werden. Um
+eine Route wiederzuverwenden, im Tab **Karte** Punkte setzen, die Route
+berechnen und über das Lesezeichen speichern. Gespeicherte Routenvorlagen
+bleiben auf dem jeweiligen Gerät und sind an das angemeldete Konto gebunden.
+Die Route einer veröffentlichten Ausfahrt gehört zur Ausfahrt und wird
+mit ihr geteilt.
+
+Unter **Freunde und Gruppen** können Fahrer eine Gruppe erstellen oder Codes
+für eine Freundschaft oder eine Gruppenmitgliedschaft austauschen. Ein
+Einladungscode ist einmal einlösbar und gilt 24 Stunden. Ein neuer Code
+ersetzt den vorherigen Code für dieselbe Einladung. Berechtigte Fahrer
+finden **Mitfahren** in den Ausfahrtdetails der Übersicht oder der Karte.
+
 ## Prüfen
 
 ```bash
 flutter analyze
 flutter test
+npm test --prefix server
 ```
 
 Für einen vollständigen Test im Simulator:

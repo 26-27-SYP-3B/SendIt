@@ -1,15 +1,20 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../rides/ride.dart';
 import 'map_points_controller.dart';
 import 'models/map_point.dart';
+import 'models/saved_route.dart';
 import 'services/connectivity_service.dart';
 import 'services/location_service.dart';
 import 'services/point_storage.dart';
+import 'services/route_storage.dart';
 import 'services/routing_service.dart';
+import 'widgets/map_tiles.dart';
 
 /// Kartenansicht: OSM-Karte, eigener Standort, gespeicherte Punkte, Routen.
 class MapPage extends StatefulWidget {
@@ -19,20 +24,30 @@ class MapPage extends StatefulWidget {
     this.locationService = const LocationService(),
     this.connectivityService,
     this.routingService,
+    this.routeStorage,
+    this.rides = const [],
+    this.onRidesAtPoint,
+    this.onRefreshRides,
+    this.focusedRideId,
+    this.focusRequest = 0,
   });
 
   final String userId;
   final LocationService locationService;
   final ConnectivityService? connectivityService;
   final RoutingService? routingService;
+  final RouteStorage? routeStorage;
+  final List<Ride> rides;
+  final ValueChanged<List<Ride>>? onRidesAtPoint;
+  final VoidCallback? onRefreshRides;
+  final String? focusedRideId;
+  final int focusRequest;
 
   @override
   State<MapPage> createState() => _MapPageState();
 }
 
 class _MapPageState extends State<MapPage> {
-  /// Mitte von Österreich als Startansicht.
-  static const _initialCenter = LatLng(47.6, 13.8);
   static const _initialZoom = 7.0;
 
   final _mapController = MapController();
@@ -47,6 +62,7 @@ class _MapPageState extends State<MapPage> {
   LatLng? _myLocation;
   RouteResult? _route;
   bool _routeLoading = false;
+  bool _routeSaving = false;
 
   @override
   void initState() {
@@ -65,12 +81,44 @@ class _MapPageState extends State<MapPage> {
   }
 
   @override
+  void didUpdateWidget(covariant MapPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.focusRequest != oldWidget.focusRequest) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final ride = _focusedRide;
+        if (ride == null) return;
+        final coordinates = [ride.meetingPoint, ...?ride.route?.result.points];
+        if (coordinates.length == 1) {
+          _mapController.move(
+            ride.meetingPoint,
+            15,
+            offset: const Offset(0, -60),
+          );
+        } else {
+          _mapController.fitCamera(
+            CameraFit.coordinates(
+              coordinates: coordinates,
+              padding: const EdgeInsets.fromLTRB(32, 40, 32, 150),
+              maxZoom: 16,
+            ),
+          );
+        }
+      });
+    }
+  }
+
+  Ride? get _focusedRide =>
+      widget.rides.where((ride) => ride.id == widget.focusedRideId).firstOrNull;
+
+  @override
   void dispose() {
     _connectivitySub?.cancel();
     _points
       ..removeListener(_onPointsChanged)
       ..dispose();
     _mapController.dispose();
+    if (widget.routingService == null) _routing.close();
     super.dispose();
   }
 
@@ -151,10 +199,15 @@ class _MapPageState extends State<MapPage> {
 
   // --- Punkte --------------------------------------------------------------
 
-  Future<String?> _askForName({String initial = '', required String title}) {
+  Future<String?> _askForName({
+    String initial = '',
+    required String title,
+    int? maxLength,
+  }) {
     return showDialog<String>(
       context: context,
-      builder: (_) => _NameDialog(title: title, initial: initial),
+      builder: (_) =>
+          _NameDialog(title: title, initial: initial, maxLength: maxLength),
     );
   }
 
@@ -203,7 +256,7 @@ class _MapPageState extends State<MapPage> {
         title: 'Punkt umbenennen',
         initial: point.name,
       );
-      if (name != null) await _points.rename(point.id, name);
+      if (name != null && mounted) await _points.rename(point.id, name);
     } else if (action == 'delete') {
       await _points.remove(point.id);
     }
@@ -219,11 +272,12 @@ class _MapPageState extends State<MapPage> {
     }
 
     setState(() => _routeLoading = true);
+    final points = _points.points;
     try {
       final route = await _routing.route(
-        _points.points.map((p) => p.position).toList(),
+        points.map((p) => p.position).toList(),
       );
-      if (!mounted) return;
+      if (!mounted || !listEquals(points, _points.points)) return;
       setState(() => _route = route);
       if (route.points.length >= 2) {
         _mapController.fitCamera(
@@ -240,19 +294,45 @@ class _MapPageState extends State<MapPage> {
     }
   }
 
+  Future<void> _saveRoute(RouteResult route) async {
+    if (_routeSaving) return;
+    if (route.points.length < 2 || route.points.length > maxRideRoutePoints) {
+      _showSnack('Die Route ist zu groß oder ungültig. Ändere die Wegpunkte.');
+      return;
+    }
+    setState(() => _routeSaving = true);
+    try {
+      final name = await _askForName(title: 'Route speichern', maxLength: 80);
+      if (!mounted || name == null) return;
+      final storage =
+          widget.routeStorage ?? RouteStorage(userId: widget.userId);
+      await storage.save(SavedRoute(name: name, result: route));
+      if (mounted) _showSnack('Route gespeichert.');
+    } catch (_) {
+      if (mounted) _showSnack('Die Route konnte nicht gespeichert werden.');
+    } finally {
+      if (mounted) setState(() => _routeSaving = false);
+    }
+  }
+
   // --- UI ------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final points = _points.points;
+    final rideRoute = _focusedRide?.route?.result;
+    final ridesByPoint = <LatLng, List<Ride>>{};
+    for (final ride in widget.rides) {
+      (ridesByPoint[ride.meetingPoint] ??= []).add(ride);
+    }
 
     return Stack(
       children: [
         FlutterMap(
           mapController: _mapController,
           options: MapOptions(
-            initialCenter: _initialCenter,
+            initialCenter: mapInitialCenter,
             initialZoom: _initialZoom,
             minZoom: 3,
             maxZoom: 19,
@@ -262,21 +342,25 @@ class _MapPageState extends State<MapPage> {
             ),
           ),
           children: [
-            TileLayer(
+            openStreetMapTiles(
               key: ValueKey(_tileReloadKey),
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'at.sendit.app',
-              maxNativeZoom: 19,
-              errorTileCallback: _onTileError,
+              onError: _onTileError,
             ),
-            if (_route != null)
+            if (_route != null || rideRoute != null)
               PolylineLayer(
                 polylines: [
-                  Polyline(
-                    points: _route!.points,
-                    strokeWidth: 5,
-                    color: scheme.primary,
-                  ),
+                  if (_route case final route?)
+                    Polyline(
+                      points: route.points,
+                      strokeWidth: 5,
+                      color: scheme.primary,
+                    ),
+                  if (rideRoute != null)
+                    Polyline(
+                      points: rideRoute.points,
+                      strokeWidth: 5,
+                      color: scheme.tertiary,
+                    ),
                 ],
               ),
             MarkerLayer(
@@ -299,14 +383,23 @@ class _MapPageState extends State<MapPage> {
                     height: 24,
                     child: const _MyLocationDot(),
                   ),
+                for (final entry in ridesByPoint.entries)
+                  Marker(
+                    point: entry.key,
+                    width: 48,
+                    height: 48,
+                    alignment: Alignment.bottomCenter,
+                    child: IconButton.filledTonal(
+                      tooltip: entry.value.length == 1
+                          ? entry.value.first.title
+                          : '${entry.value.length} Ausfahrten an diesem Treffpunkt',
+                      icon: const Icon(Icons.two_wheeler),
+                      onPressed: () => widget.onRidesAtPoint?.call(entry.value),
+                    ),
+                  ),
               ],
             ),
-            RichAttributionWidget(
-              alignment: AttributionAlignment.bottomLeft,
-              attributions: const [
-                TextSourceAttribution('OpenStreetMap-Mitwirkende'),
-              ],
-            ),
+            openStreetMapAttribution(),
           ],
         ),
 
@@ -344,17 +437,32 @@ class _MapPageState extends State<MapPage> {
                 // Teil der Spalte, damit er nie die Routen-Karte überdeckt.
                 Align(
                   alignment: Alignment.centerRight,
-                  child: FloatingActionButton(
-                    heroTag: 'my_location',
-                    tooltip: 'Mein Standort',
-                    onPressed: _goToMyLocation,
-                    child: const Icon(Icons.my_location),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (widget.onRefreshRides case final refresh?)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: IconButton.filledTonal(
+                            tooltip: 'Ausfahrten aktualisieren',
+                            onPressed: refresh,
+                            icon: const Icon(Icons.refresh),
+                          ),
+                        ),
+                      FloatingActionButton(
+                        heroTag: 'my_location',
+                        tooltip: 'Mein Standort',
+                        onPressed: _goToMyLocation,
+                        child: const Icon(Icons.my_location),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 16),
                 if (_route != null) ...[
                   _RouteInfoCard(
                     route: _route!,
+                    onSave: _routeSaving ? null : () => _saveRoute(_route!),
                     onClose: () => setState(() => _route = null),
                   ),
                   const SizedBox(height: 8),
@@ -393,10 +501,15 @@ class _MapPageState extends State<MapPage> {
 }
 
 class _NameDialog extends StatefulWidget {
-  const _NameDialog({required this.title, required this.initial});
+  const _NameDialog({
+    required this.title,
+    required this.initial,
+    this.maxLength,
+  });
 
   final String title;
   final String initial;
+  final int? maxLength;
 
   @override
   State<_NameDialog> createState() => _NameDialogState();
@@ -413,7 +526,10 @@ class _NameDialogState extends State<_NameDialog> {
 
   void _submit() {
     final name = _controller.text.trim();
-    if (name.isNotEmpty) Navigator.of(context).pop(name);
+    final maxLength = widget.maxLength;
+    if (name.isNotEmpty && (maxLength == null || name.length <= maxLength)) {
+      Navigator.of(context).pop(name);
+    }
   }
 
   @override
@@ -423,6 +539,7 @@ class _NameDialogState extends State<_NameDialog> {
       content: TextField(
         controller: _controller,
         autofocus: true,
+        maxLength: widget.maxLength,
         textCapitalization: TextCapitalization.sentences,
         decoration: const InputDecoration(
           labelText: 'Name',
@@ -528,9 +645,14 @@ class _ErrorBanner extends StatelessWidget {
 }
 
 class _RouteInfoCard extends StatelessWidget {
-  const _RouteInfoCard({required this.route, required this.onClose});
+  const _RouteInfoCard({
+    required this.route,
+    required this.onSave,
+    required this.onClose,
+  });
 
   final RouteResult route;
+  final VoidCallback? onSave;
   final VoidCallback onClose;
 
   @override
@@ -542,14 +664,26 @@ class _RouteInfoCard extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 8, 4, 8),
         child: Row(
           children: [
-            const Icon(Icons.straighten),
-            const SizedBox(width: 8),
-            Text(route.formattedDistance, style: text.titleMedium),
-            const SizedBox(width: 24),
-            const Icon(Icons.schedule),
-            const SizedBox(width: 8),
-            Text('ca. ${route.formattedDuration}', style: text.titleMedium),
-            const Spacer(),
+            Expanded(
+              child: Wrap(
+                spacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  const Icon(Icons.straighten),
+                  Text(route.formattedDistance, style: text.titleMedium),
+                  const Icon(Icons.schedule),
+                  Text(
+                    'ca. ${route.formattedDuration}',
+                    style: text.titleMedium,
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: 'Route speichern',
+              onPressed: onSave,
+              icon: const Icon(Icons.bookmark_add_outlined),
+            ),
             IconButton(
               tooltip: 'Route ausblenden',
               onPressed: onClose,

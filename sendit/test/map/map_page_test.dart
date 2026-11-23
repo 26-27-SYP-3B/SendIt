@@ -10,6 +10,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:sendit/map/map_page.dart';
 import 'package:sendit/map/services/connectivity_service.dart';
 import 'package:sendit/map/services/location_service.dart';
+import 'package:sendit/map/services/route_storage.dart';
 import 'package:sendit/map/services/routing_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -119,6 +120,15 @@ void main() {
     expect(find.text('1,2 km'), findsOneWidget);
     expect(find.text('ca. 5 min'), findsOneWidget);
     expect(find.byType(PolylineLayer), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Route speichern'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Meine Runde');
+    await tester.tap(find.text('Speichern'));
+    await tester.pumpAndSettle();
+    final saved = (await RouteStorage(userId: 'test').load()).single;
+    expect(saved.name, 'Meine Runde');
+    expect(saved.result.distanceMeters, 1234);
   });
 
   testWidgets('Punkt umbenennen und löschen', (tester) async {
