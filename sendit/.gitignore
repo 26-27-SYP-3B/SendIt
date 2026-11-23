@@ -48,3 +48,4 @@ app.*.map.json
 # Widget Preview related
 .widget_preview/
 *.png
+!/android/app/src/main/res/mipmap-*/ic_launcher.png

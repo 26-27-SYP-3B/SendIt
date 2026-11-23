@@ -56,8 +56,10 @@ class _RideRecordingPanelState extends State<RideRecordingPanel> {
   }
 
   Future<void> _stop() async {
-    final ride = await widget.controller.stop();
-    if (!mounted) return;
+    final controller = widget.controller;
+    if (controller.isStopping) return;
+    final ride = await controller.stop();
+    if (!mounted || controller.errorMessage != null) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -161,7 +163,9 @@ class _RideRecordingPanelState extends State<RideRecordingPanel> {
                   Expanded(
                     child: OutlinedButton.icon(
                       key: const Key('resume_ride_button'),
-                      onPressed: controller.resume,
+                      onPressed: controller.isStopping
+                          ? null
+                          : controller.resume,
                       icon: const Icon(Icons.play_arrow),
                       label: const Text('Fortsetzen'),
                     ),
@@ -170,7 +174,7 @@ class _RideRecordingPanelState extends State<RideRecordingPanel> {
                   Expanded(
                     child: FilledButton.icon(
                       key: const Key('stop_ride_button'),
-                      onPressed: _stop,
+                      onPressed: controller.isStopping ? null : _stop,
                       icon: const Icon(Icons.stop),
                       label: const Text('Beenden'),
                     ),

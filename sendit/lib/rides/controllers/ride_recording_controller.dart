@@ -12,12 +12,10 @@ enum RideRecordingState { idle, recording, paused }
 /// Steuert Start, Pause, Fortsetzen und Beenden einer GPS-Fahrt.
 class RideRecordingController extends ChangeNotifier {
   RideRecordingController({
-    required RideLocationSource locationSource,
-    required RideStorage storage,
+    required this._locationSource,
+    required this._storage,
     DateTime Function()? now,
-  }) : _locationSource = locationSource,
-       _storage = storage,
-       _now = now ?? DateTime.now;
+  }) : _now = now ?? DateTime.now;
 
   final RideLocationSource _locationSource;
   final RideStorage _storage;
@@ -31,6 +29,8 @@ class RideRecordingController extends ChangeNotifier {
   Duration _recordedDuration = Duration.zero;
   double _distanceMeters = 0;
   bool _beginNewSegment = true;
+  bool _isStopping = false;
+  bool _disposed = false;
   String? _errorMessage;
 
   RideRecordingState get state => _state;
@@ -38,6 +38,7 @@ class RideRecordingController extends ChangeNotifier {
   DateTime? get startedAt => _startedAt;
   double get distanceMeters => _distanceMeters;
   String? get errorMessage => _errorMessage;
+  bool get isStopping => _isStopping;
 
   Duration get duration {
     if (_state == RideRecordingState.recording &&
@@ -124,7 +125,7 @@ class RideRecordingController extends ChangeNotifier {
   }
 
   Future<void> resume() async {
-    if (_state != RideRecordingState.paused) return;
+    if (_state != RideRecordingState.paused || _isStopping) return;
 
     _segmentStartedAt = _now();
     _state = RideRecordingState.recording;
@@ -133,14 +134,20 @@ class RideRecordingController extends ChangeNotifier {
   }
 
   Future<Ride?> stop() async {
-    if (_state == RideRecordingState.idle) return null;
+    if (_state == RideRecordingState.idle || _isStopping) return null;
+    _isStopping = true;
+    _errorMessage = null;
 
     if (_state == RideRecordingState.recording) {
       _recordedDuration += _now().difference(_segmentStartedAt!);
     }
 
-    await _positionSubscription?.cancel();
+    _state = RideRecordingState.paused;
+    _segmentStartedAt = null;
+    _beginNewSegment = true;
+    final subscription = _positionSubscription;
     _positionSubscription = null;
+    notifyListeners();
 
     final start = _startedAt!;
     final ride = _points.isEmpty
@@ -154,9 +161,18 @@ class RideRecordingController extends ChangeNotifier {
             points: List.unmodifiable(_points),
           );
 
-    if (ride != null) await _storage.add(ride);
-    _reset();
-    return ride;
+    try {
+      await subscription?.cancel();
+      if (ride != null) await _storage.add(ride);
+      _reset();
+      return ride;
+    } catch (_) {
+      _errorMessage = 'Die Fahrt konnte nicht gespeichert werden.';
+      return null;
+    } finally {
+      _isStopping = false;
+      if (!_disposed) notifyListeners();
+    }
   }
 
   void _reset() {
@@ -168,11 +184,11 @@ class RideRecordingController extends ChangeNotifier {
     _beginNewSegment = true;
     _points.clear();
     _errorMessage = null;
-    notifyListeners();
   }
 
   @override
   void dispose() {
+    _disposed = true;
     _positionSubscription?.cancel();
     super.dispose();
   }

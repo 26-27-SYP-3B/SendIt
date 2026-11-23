@@ -58,7 +58,9 @@ void main() {
     );
     await Future<void>.delayed(Duration.zero);
 
-    final ride = await controller.stop();
+    final pendingRide = controller.stop();
+    expect(await controller.stop(), isNull);
+    final ride = await pendingRide;
 
     expect(ride, isNotNull);
     expect(ride!.points, hasLength(2));

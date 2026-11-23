@@ -43,6 +43,14 @@ class GeolocatorRideLocationSource implements RideLocationSource {
           setOngoing: true,
         ),
       );
+    } else if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+      settings = AppleSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 5,
+        activityType: ActivityType.fitness,
+        pauseLocationUpdatesAutomatically: false,
+        allowBackgroundLocationUpdates: true,
+      );
     } else {
       settings = const LocationSettings(
         accuracy: LocationAccuracy.high,
