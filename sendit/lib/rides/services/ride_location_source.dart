@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:geolocator_android/geolocator_android.dart';
 
 import '../models/ride.dart';
 
@@ -28,11 +30,28 @@ class GeolocatorRideLocationSource implements RideLocationSource {
 
   @override
   Stream<RideTrackPoint> get positions {
-    return Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
+    final LocationSettings settings;
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      settings = const AndroidSettings(
         accuracy: LocationAccuracy.high,
         distanceFilter: 5,
-      ),
+        foregroundNotificationConfig: ForegroundNotificationConfig(
+          notificationTitle: 'SendIt – Fahrt läuft',
+          notificationText: 'Deine GPS-Fahrt wird aufgezeichnet.',
+          notificationChannelName: 'Fahrtenaufzeichnung',
+          enableWakeLock: true,
+          setOngoing: true,
+        ),
+      );
+    } else {
+      settings = const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 5,
+      );
+    }
+
+    return Geolocator.getPositionStream(
+      locationSettings: settings,
     ).map(
       (position) => RideTrackPoint(
         latitude: position.latitude,
