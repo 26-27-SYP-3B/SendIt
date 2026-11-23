@@ -32,7 +32,7 @@ class GeolocatorRideLocationSource implements RideLocationSource {
   Stream<RideTrackPoint> get positions {
     final LocationSettings settings;
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      settings = const android.AndroidSettings(
+      settings = android.AndroidSettings(
         accuracy: LocationAccuracy.high,
         distanceFilter: 5,
         foregroundNotificationConfig: android.ForegroundNotificationConfig(
