@@ -32,6 +32,9 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+/build
+/packages/clerk_flutter/build/
+/packages/clerk_flutter/pubspec.lock
 /coverage/
 
 # Symbolication related
@@ -49,3 +52,6 @@ app.*.map.json
 .widget_preview/
 *.png
 !/android/app/src/main/res/mipmap-*/ic_launcher.png
+
+# Local Flutter SDK clone
+/flutter/
