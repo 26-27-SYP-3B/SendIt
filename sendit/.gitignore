@@ -32,6 +32,9 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+/build
+/packages/clerk_flutter/build/
+/packages/clerk_flutter/pubspec.lock
 /coverage/
 
 # Symbolication related
