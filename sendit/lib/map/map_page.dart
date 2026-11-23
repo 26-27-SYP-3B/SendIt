@@ -10,6 +10,10 @@ import 'services/connectivity_service.dart';
 import 'services/location_service.dart';
 import 'services/point_storage.dart';
 import 'services/routing_service.dart';
+import '../rides/controllers/ride_recording_controller.dart';
+import '../rides/services/ride_location_source.dart';
+import '../rides/services/ride_storage.dart';
+import '../rides/widgets/ride_recording_panel.dart';
 
 /// Kartenansicht: OSM-Karte, eigener Standort, gespeicherte Punkte, Routen.
 class MapPage extends StatefulWidget {
@@ -39,6 +43,7 @@ class _MapPageState extends State<MapPage> {
   late final MapPointsController _points;
   late final ConnectivityService _connectivity;
   late final RoutingService _routing;
+  late final RideRecordingController _rideRecording;
   StreamSubscription<bool>? _connectivitySub;
 
   bool _online = true;
@@ -56,6 +61,10 @@ class _MapPageState extends State<MapPage> {
       ..load();
     _connectivity = widget.connectivityService ?? ConnectivityService();
     _routing = widget.routingService ?? RoutingService();
+    _rideRecording = RideRecordingController(
+      locationSource: const GeolocatorRideLocationSource(),
+      storage: RideStorage(userId: widget.userId),
+    );
 
     _connectivity.isOnline().then(_setOnline);
     _connectivitySub = _connectivity.onlineChanges.listen(
@@ -67,6 +76,7 @@ class _MapPageState extends State<MapPage> {
   @override
   void dispose() {
     _connectivitySub?.cancel();
+    _rideRecording.dispose();
     _points
       ..removeListener(_onPointsChanged)
       ..dispose();
@@ -351,7 +361,9 @@ class _MapPageState extends State<MapPage> {
                     child: const Icon(Icons.my_location),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
+                RideRecordingPanel(controller: _rideRecording),
+                const SizedBox(height: 8),
                 if (_route != null) ...[
                   _RouteInfoCard(
                     route: _route!,
