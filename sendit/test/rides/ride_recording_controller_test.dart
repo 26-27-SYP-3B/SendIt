@@ -81,7 +81,16 @@ void main() {
       now: () => now,
     );
 
-    await controller.start();
+    expect(await controller.start(), isTrue);
+    source.add(
+      RideTrackPoint(
+        latitude: 48.3,
+        longitude: 14.28,
+        timestamp: now,
+      ),
+    );
+    await Future<void>.delayed(Duration.zero);
+
     now = now.add(const Duration(seconds: 10));
     await controller.pause();
     expect(controller.state, RideRecordingState.paused);
