@@ -30,6 +30,7 @@ class RideRecordingController extends ChangeNotifier {
   DateTime? _segmentStartedAt;
   Duration _recordedDuration = Duration.zero;
   double _distanceMeters = 0;
+  bool _beginNewSegment = true;
   String? _errorMessage;
 
   RideRecordingState get state => _state;
@@ -60,6 +61,7 @@ class RideRecordingController extends ChangeNotifier {
 
       _points.clear();
       _distanceMeters = 0;
+      _beginNewSegment = true;
       _recordedDuration = Duration.zero;
       _startedAt = _now();
       _segmentStartedAt = _startedAt;
@@ -93,7 +95,7 @@ class RideRecordingController extends ChangeNotifier {
       return;
     }
 
-    if (_points.isNotEmpty) {
+    if (_points.isNotEmpty && !_beginNewSegment) {
       final previous = _points.last;
       if (!point.timestamp.isAfter(previous.timestamp)) return;
 
@@ -105,6 +107,7 @@ class RideRecordingController extends ChangeNotifier {
     }
 
     _points.add(point);
+    _beginNewSegment = false;
     notifyListeners();
   }
 
@@ -114,6 +117,7 @@ class RideRecordingController extends ChangeNotifier {
     _recordedDuration += _now().difference(_segmentStartedAt!);
     _segmentStartedAt = null;
     _state = RideRecordingState.paused;
+    _beginNewSegment = true;
     await _positionSubscription?.cancel();
     _positionSubscription = null;
     notifyListeners();
@@ -161,6 +165,7 @@ class RideRecordingController extends ChangeNotifier {
     _segmentStartedAt = null;
     _recordedDuration = Duration.zero;
     _distanceMeters = 0;
+    _beginNewSegment = true;
     _points.clear();
     _errorMessage = null;
     notifyListeners();
